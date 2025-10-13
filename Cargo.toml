@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+dirs = "6.0.0"
+hex = "0.4.3"
 serde_json = "1.0.145"
+sha1 = "0.10.6"
 thiserror = "2.0.17"
 tokio = {version = "1.47.1", features = ["full"]}
+url = "2.5.7"
+zip = "6.0.0"
