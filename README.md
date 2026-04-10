@@ -21,8 +21,6 @@ Then in your Helix `languages.toml`:
 
     [[language]]
     name = "clojure"
-    scope = "source.clojure"
-    injection-regex = "clojure"
     file-types = ["clj", "cljs", "cljc", "edn"]
     roots = [
       "deps.edn",
@@ -30,10 +28,7 @@ Then in your Helix `languages.toml`:
       "bb.edn",
       "shadow-cljs.edn"
     ]
-    comment-token = ";;"
     language-servers = ["clojure-lsp"]
-    indent = {tab-width = 2, unit = "  "}
-
 
     [language-server.clojure-lsp]
     command = "/PATH/TO/EXECUTABLE/clojure-lsp-proxy"
