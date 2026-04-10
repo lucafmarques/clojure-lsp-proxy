@@ -1,12 +1,21 @@
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::error::{KotlinLSPWrapperError, KotlinLSPWrapperResult};
+use crate::error::{ClojureLspProxyError, ClojureLspProxyResult};
+
+pub(crate) enum Message {
+  /// A properly framed LSP message (body only, without headers).
+  Lsp(Vec<u8>),
+  /// Raw bytes that were not properly framed — forward as-is.
+  Raw(Vec<u8>),
+}
 
 // Minimal framing for JSON-RPC: read/write with Content-Length headers.
+// When data arrives without Content-Length, returns it as Raw for passthrough.
 pub(crate) async fn read_message<R: AsyncReadExt + Unpin>(
   r: &mut R,
-) -> KotlinLSPWrapperResult<Option<Vec<u8>>> {
+) -> ClojureLspProxyResult<Option<Message>> {
   let mut content_length: Option<usize> = None;
+  let mut raw = Vec::new();
   let mut line = Vec::new();
   #[allow(unused_assignments)]
   let mut header_ended = false;
@@ -18,15 +27,17 @@ pub(crate) async fn read_message<R: AsyncReadExt + Unpin>(
       let mut byte = [0u8; 1];
       let n = r.read(&mut byte).await?;
       if n == 0 {
-        // EOF: if we haven't read any headers, signal end.
-        if content_length.is_none() {
+        if content_length.is_none() && raw.is_empty() {
           return Ok(None);
+        } else if !raw.is_empty() {
+          return Ok(Some(Message::Raw(raw)));
         } else {
-          return Err(KotlinLSPWrapperError::General("EOF mid-headers".into()));
+          return Err(ClojureLspProxyError::General("EOF mid-headers".into()));
         }
       }
 
       line.push(byte[0]);
+      raw.push(byte[0]);
       if line.ends_with(b"\r\n") {
         break;
       }
@@ -49,9 +60,9 @@ pub(crate) async fn read_message<R: AsyncReadExt + Unpin>(
     return Ok(None);
   }
 
-  let len = content_length.ok_or_else(|| {
-    KotlinLSPWrapperError::General("Missing Content-Length".into())
-  })?;
+  let Some(len) = content_length else {
+    return Ok(Some(Message::Raw(raw)));
+  };
 
   let mut body = vec![0u8; len];
   let mut read = 0usize;
@@ -60,23 +71,32 @@ pub(crate) async fn read_message<R: AsyncReadExt + Unpin>(
     let n = r.read(&mut body[read..]).await?;
 
     if n == 0 {
-      return Err(KotlinLSPWrapperError::General(
+      return Err(ClojureLspProxyError::General(
         "EOF while reading body".into(),
       ));
     }
     read += n;
   }
 
-  Ok(Some(body))
+  Ok(Some(Message::Lsp(body)))
 }
 
 pub(crate) async fn write_message<W: AsyncWriteExt + Unpin>(
   w: &mut W,
   body: &[u8],
-) -> KotlinLSPWrapperResult<()> {
+) -> ClojureLspProxyResult<()> {
   w.write_all(format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes())
     .await?;
   w.write_all(body).await?;
+  w.flush().await?;
+  Ok(())
+}
+
+pub(crate) async fn write_raw<W: AsyncWriteExt + Unpin>(
+  w: &mut W,
+  data: &[u8],
+) -> ClojureLspProxyResult<()> {
+  w.write_all(data).await?;
   w.flush().await?;
   Ok(())
 }

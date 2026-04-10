@@ -1,33 +1,39 @@
-A small proxy for kotlin-lsp to Helix, because Helix doesn't support JAR paths.
+A small proxy for clojure-lsp to Helix, because Helix doesn't support JAR paths.
 
-The proxy spawns an instance of kotlin-lsp and forwards messages to Helix after
-rewriting the JAR:// path to a file:// path, unzipping the file to the default
-caching destination of the OS.
+The proxy spawns an instance of clojure-lsp and forwards messages to Helix after
+rewriting `jar:file://` paths to `file://` paths, extracting the file to the
+default caching destination of the OS.
 
-Tested on MacOS, although I haven't done a lot of it, go to definition and
-references seems to be working well for me.
+Based on [kotlin-lsp-proxy](https://github.com/Alacho2/kotlin-lsp-proxy).
 
-### How to.
-Clone the project, build it with cargo and configure language.toml to point to
-the created executable.
-Such as
+### Prerequisites
+
+- [clojure-lsp](https://clojure-lsp.io/installation/) must be installed and on your PATH.
+
+### How to
+
+Clone the project, build it with cargo and configure `languages.toml` to point
+to the created executable.
+
+    cargo build --release
+
+Then in your Helix `languages.toml`:
 
     [[language]]
-    name = "kotlin"
-    scope = "source.kotlin"
-    injection-regex = "kotlin"
-    file-types = ["kt", "kts"]
-    shebangs = ["kotlin"]
+    name = "clojure"
+    scope = "source.clojure"
+    injection-regex = "clojure"
+    file-types = ["clj", "cljs", "cljc", "edn"]
     roots = [
-      "settings.gradle",
-      "settings.gradle.kts",
-      "build.gradle",
-      "build.gradle.kts"
+      "deps.edn",
+      "project.clj",
+      "bb.edn",
+      "shadow-cljs.edn"
     ]
-    comment-token = "//"
-    language-servers = ["kotlin-lsp"]
+    comment-token = ";;"
+    language-servers = ["clojure-lsp"]
     indent = {tab-width = 2, unit = "  "}
 
 
-    [language-server.kotlin-lsp]
-    command = "/PATH/TO/EXECUTABLE/kotlin-lsp-wrapper"
+    [language-server.clojure-lsp]
+    command = "/PATH/TO/EXECUTABLE/clojure-lsp-proxy"

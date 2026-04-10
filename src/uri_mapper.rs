@@ -10,7 +10,7 @@ use sha1::{Digest, Sha1};
 use url::Url;
 use zip::ZipArchive;
 
-use crate::error::{KotlinLSPWrapperError, KotlinLSPWrapperResult};
+use crate::error::{ClojureLspProxyError, ClojureLspProxyResult};
 
 pub(crate) struct UriMapper {
   cache_root: PathBuf,
@@ -22,7 +22,7 @@ impl UriMapper {
   pub(crate) fn new() -> Self {
     let cache_root = dirs::cache_dir()
       .unwrap_or_else(|| PathBuf::from("."))
-      .join("kotlin-lsp-proxy");
+      .join("clojure-lsp-proxy");
     fs::create_dir_all(&cache_root).ok();
 
     Self {
@@ -42,9 +42,13 @@ impl UriMapper {
       return cached_file.clone();
     }
     
-    let stripped_jar = url.as_str().trim_start_matches("jar://");
+    let raw = url.as_str();
+    let after_jar = raw
+      .strip_prefix("jar:file://")
+      .or_else(|| raw.strip_prefix("jar://"))
+      .unwrap_or(raw);
 
-    let Some((jar_path_raw, entry_path)) = stripped_jar.split_once("!")
+    let Some((jar_path_raw, entry_path)) = after_jar.split_once("!")
     else {
       return url.clone();
     };
@@ -52,10 +56,7 @@ impl UriMapper {
     let jar_path = if jar_path_raw.starts_with("/") {
       jar_path_raw.to_string()
     } else {
-      match jar_path_raw.starts_with("localhost/") {
-        true => format!("/{}", &jar_path_raw["localhost/".len()..]),
-        false => format!("/{}", jar_path_raw),
-      }
+      format!("/{}", jar_path_raw)
     };
 
     let file_path = match self.ensure_extracted(&jar_path, entry_path) {
@@ -78,7 +79,7 @@ impl UriMapper {
     &self,
     jar_abs_path: &str,
     entry_path: &str,
-  ) -> KotlinLSPWrapperResult<PathBuf> {
+  ) -> ClojureLspProxyResult<PathBuf> {
     let meta = fs::metadata(jar_abs_path)?;
     let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
     let size = meta.len();
@@ -144,7 +145,7 @@ impl UriMapper {
     }
 
     let idx = found.ok_or_else(|| {
-      KotlinLSPWrapperError::General(format!(
+      ClojureLspProxyError::General(format!(
         "Entry not found in jar: {}",
         entry_str
       ))

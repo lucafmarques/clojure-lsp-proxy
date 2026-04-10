@@ -1,10 +1,10 @@
 use thiserror::Error;
 
-pub(crate) type KotlinLSPWrapperResult<T> =
-  std::result::Result<T, KotlinLSPWrapperError>;
+pub(crate) type ClojureLspProxyResult<T> =
+  std::result::Result<T, ClojureLspProxyError>;
 
 #[derive(Debug, Error)]
-pub(crate) enum KotlinLSPWrapperError {
+pub(crate) enum ClojureLspProxyError {
   #[error("IoError. Error: {0}")]
   Io(#[from] std::io::Error),
 
