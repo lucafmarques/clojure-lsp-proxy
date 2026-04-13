@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 
 use crate::{
   error::ClojureLspProxyResult,
-  transport::{read_message, write_message, write_raw, Message},
+  transport::{Message, read_message, write_message, write_raw},
   uri_mapper::UriMapper,
 };
 
@@ -24,7 +24,6 @@ async fn main() -> ClojureLspProxyResult<()> {
   }
 
   let mut child = Command::new("clojure-lsp")
-    .arg("--log-path=/tmp/clojure-lsp.logs")
     .stdin(std::process::Stdio::piped())
     .stdout(std::process::Stdio::piped())
     .spawn()
